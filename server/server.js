@@ -14,6 +14,7 @@ const roommateRoutes = require('./routes/roommateRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const quizRoutes = require('./routes/quizRoutes');
 const socketHandler = require('./sockets/socketHandler');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
@@ -31,18 +32,10 @@ app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  message: { message: 'Too many requests, please try again later.' },
-});
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, message: { message: 'Too many requests, please try again later.' } });
 app.use('/api/', limiter);
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { message: 'Too many login/register attempts, please try again later.' },
-});
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { message: 'Too many login/register attempts, please try again later.' } });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
@@ -52,6 +45,7 @@ app.use('/api/roommates', roommateRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/quiz', quizRoutes);
 
 app.get('/', (req, res) => {
   res.send('Campus Marketplace API is running');

@@ -1,6 +1,7 @@
 
 const { Op } = require('sequelize');
 const { Roommate, User } = require('../models');
+const { calculateMatchPercentage } = require('../utils/compatibility');
 
 exports.createRoommate = async (req, res) => {
   try {
@@ -38,11 +39,30 @@ exports.getRoommates = async (req, res) => {
 
     const posts = await Roommate.findAll({
       where,
-      include: [{ model: User, as: 'poster', attributes: ['id', 'name', 'email', 'avatar'] }],
+      include: [{ model: User, as: 'poster', attributes: ['id', 'name', 'email', 'avatar', 'sleepSchedule', 'cleanliness', 'smoking', 'pets', 'studyHabits', 'socialLevel', 'guestsFrequency', 'quizCompleted'] }],
       order: [['createdAt', 'DESC']],
     });
 
-    res.json(posts);
+    let currentUser = null;
+    if (req.headers.authorization) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET);
+        currentUser = await User.findByPk(decoded.id);
+      } catch (e) {}
+    }
+
+    const postsWithMatch = posts.map((post) => {
+      const plain = post.toJSON();
+      if (currentUser && plain.poster) {
+        plain.matchPercentage = calculateMatchPercentage(currentUser, plain.poster);
+      } else {
+        plain.matchPercentage = null;
+      }
+      return plain;
+    });
+
+    res.json(postsWithMatch);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -51,10 +71,23 @@ exports.getRoommates = async (req, res) => {
 exports.getRoommateById = async (req, res) => {
   try {
     const post = await Roommate.findByPk(req.params.id, {
-      include: [{ model: User, as: 'poster', attributes: ['id', 'name', 'email', 'avatar'] }],
+      include: [{ model: User, as: 'poster', attributes: ['id', 'name', 'email', 'avatar', 'sleepSchedule', 'cleanliness', 'smoking', 'pets', 'studyHabits', 'socialLevel', 'guestsFrequency', 'quizCompleted'] }],
     });
     if (!post) return res.status(404).json({ message: 'Post not found' });
-    res.json(post);
+
+    let currentUser = null;
+    if (req.headers.authorization) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(req.headers.authorization.split(' ')[1], process.env.JWT_SECRET);
+        currentUser = await User.findByPk(decoded.id);
+      } catch (e) {}
+    }
+
+    const plain = post.toJSON();
+    plain.matchPercentage = currentUser ? calculateMatchPercentage(currentUser, plain.poster) : null;
+
+    res.json(plain);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
