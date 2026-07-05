@@ -89,6 +89,7 @@ Every semester, students end up scattered across WhatsApp groups, Instagram stor
 ## 📁 Folder Structure
 
 \`\`\`
+
 campus-marketplace/
 │
 ├── client/                        # React frontend
@@ -183,6 +184,7 @@ campus-marketplace/
 │
 ├── .gitignore
 └── README.md
+
 \`\`\`
 
 ## 🚀 Getting Started
