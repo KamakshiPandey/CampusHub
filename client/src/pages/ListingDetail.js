@@ -3,13 +3,14 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { FaMapMarkerAlt, FaTag, FaUserCircle, FaComments } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaTag, FaUserCircle, FaComments, FaCheckCircle } from 'react-icons/fa';
 import api from '../utils/api';
 import { UPLOADS_URL } from '../utils/constants';
 import { addRecentlyViewed } from '../utils/recentlyViewed';
 import { AuthContext } from '../context/AuthContext';
 import ListingMap from '../components/ListingMap';
-import { StarDisplay } from '../components/StarRating';
+import CampusScoreBadge from '../components/CampusScoreBadge';
+import FeedbackModal from '../components/FeedbackModal';
 
 const ListingDetail = () => {
   const { id } = useParams();
@@ -18,19 +19,23 @@ const ListingDetail = () => {
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [sellerRating, setSellerRating] = useState({ avgRating: 0, count: 0 });
+  const [sellerScore, setSellerScore] = useState(0);
+  const [eligible, setEligible] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     api.get('/listings/' + id).then((res) => {
       setListing(res.data);
       addRecentlyViewed(res.data);
       if (res.data.seller?.id) {
-        api.get('/reviews/user/' + res.data.seller.id).then((r) =>
-          setSellerRating({ avgRating: r.data.avgRating, count: r.data.count })
-        );
+        api.get('/reviews/user/' + res.data.seller.id).then((r) => setSellerScore(r.data.campusScore));
+      }
+      if (user && res.data.seller?.id !== user.id && res.data.status !== 'available') {
+        api.get('/reviews/eligibility', { params: { listingId: res.data.id, revieweeId: res.data.seller.id } })
+          .then((r) => setEligible(r.data.eligible));
       }
     }).finally(() => setLoading(false));
-  }, [id]);
+  }, [id, user]);
 
   const handleContact = async () => {
     if (!user) {
@@ -82,9 +87,16 @@ const ListingDetail = () => {
         </div>
 
         <div>
-          <span className="bg-primary-50 text-primary-600 text-xs font-semibold px-3 py-1 rounded-full">
-            {listing.type === 'rent' ? 'For Rent' : 'For Sale'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="bg-primary-50 text-primary-600 text-xs font-semibold px-3 py-1 rounded-full">
+              {listing.type === 'rent' ? 'For Rent' : 'For Sale'}
+            </span>
+            {listing.status !== 'available' && (
+              <span className="bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded-full capitalize">
+                {listing.status}
+              </span>
+            )}
+          </div>
           <h1 className="font-display text-3xl font-bold text-dark mt-3">{listing.title}</h1>
           <p className="text-3xl font-bold text-primary-600 mt-2">₹{listing.price}</p>
 
@@ -95,19 +107,24 @@ const ListingDetail = () => {
 
           <p className="text-gray-700 mt-6 leading-relaxed">{listing.description}</p>
 
-          <div className="card p-4 mt-8 flex items-center justify-between">
+          {eligible && (
+            <div className="bg-green-50 border border-green-100 rounded-lg p-4 mt-6 flex items-center justify-between gap-3">
+              <p className="text-sm text-green-700">Did you receive this item? Let others know how it went.</p>
+              <button
+                onClick={() => setFeedbackOpen(true)}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1 whitespace-nowrap"
+              >
+                <FaCheckCircle size={12} /> Leave a Review
+              </button>
+            </div>
+          )}
+
+          <div className="card p-4 mt-6 flex items-center justify-between flex-wrap gap-3">
             <Link to={'/users/' + listing.seller?.id} className="flex items-center gap-3">
               <FaUserCircle size={36} className="text-gray-400" />
               <div>
                 <p className="font-semibold text-gray-800 hover:text-primary-600">{listing.seller?.name || 'Unknown seller'}</p>
-                {sellerRating.count > 0 ? (
-                  <div className="flex items-center gap-1">
-                    <StarDisplay rating={sellerRating.avgRating} size={11} />
-                    <span className="text-xs text-gray-400">({sellerRating.count})</span>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-400">No reviews yet</p>
-                )}
+                <CampusScoreBadge score={sellerScore} size="small" />
               </div>
             </Link>
             {user?.id !== listing.seller?.id && (
@@ -123,6 +140,17 @@ const ListingDetail = () => {
           </div>
         </div>
       </div>
+
+      {listing.seller && (
+        <FeedbackModal
+          open={feedbackOpen}
+          onClose={() => { setFeedbackOpen(false); setEligible(false); }}
+          revieweeId={listing.seller.id}
+          revieweeName={listing.seller.name}
+          listingId={listing.id}
+          label="Rate Your Purchase"
+        />
+      )}
     </motion.div>
   );
 };

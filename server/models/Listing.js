@@ -1,14 +1,9 @@
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 const User = require('./User');
 
 const Listing = sequelize.define('Listing', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   title: { type: DataTypes.STRING, allowNull: false },
   description: { type: DataTypes.TEXT, allowNull: false },
   price: { type: DataTypes.FLOAT, allowNull: false },
@@ -22,11 +17,13 @@ const Listing = sequelize.define('Listing', {
   status: { type: DataTypes.ENUM('available', 'sold', 'rented'), defaultValue: 'available' },
   viewCount: { type: DataTypes.INTEGER, defaultValue: 0 },
   lastViewMilestoneEmailed: { type: DataTypes.INTEGER, defaultValue: 0 },
+  buyerId: { type: DataTypes.INTEGER, allowNull: true },
   userId: { type: DataTypes.INTEGER, allowNull: false },
 }, {
   timestamps: true,
 });
 
 Listing.belongsTo(User, { foreignKey: 'userId', as: 'seller' });
+Listing.belongsTo(User, { foreignKey: 'buyerId', as: 'buyer' });
 
 module.exports = Listing;

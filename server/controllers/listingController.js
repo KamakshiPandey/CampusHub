@@ -1,6 +1,6 @@
 
 const { Op } = require('sequelize');
-const { Listing, User } = require('../models');
+const { Listing, User, Chat } = require('../models');
 const sendEmail = require('../utils/mailer');
 
 exports.createListing = async (req, res) => {
@@ -88,12 +88,51 @@ exports.getListingById = async (req, res) => {
       await listing.save();
       sendEmail(
         listing.seller.email,
-        'Your listing is getting attention! 🎉',
-        '<h2>Great news, ' + listing.seller.name + '!</h2>' +
-        '<p>Your listing "<strong>' + listing.title + '</strong>" has reached <strong>' + nextMilestone + ' views</strong> on CampusHub.</p>' +
-        '<p>Keep an eye on your messages — interested buyers may reach out soon!</p>'
+        'Your listing is getting attention!',
+        '<h2>Great news, ' + listing.seller.name + '!</h2><p>Your listing "<strong>' + listing.title + '</strong>" has reached <strong>' + nextMilestone + ' views</strong>.</p>'
       );
     }
+
+    res.json(listing);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getPotentialBuyers = async (req, res) => {
+  try {
+    const listing = await Listing.findByPk(req.params.id);
+    if (!listing) return res.status(404).json({ message: 'Listing not found' });
+    if (listing.userId !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
+
+    const chats = await Chat.findAll({
+      where: { listingId: listing.id },
+      include: [
+        { model: User, as: 'user1', attributes: ['id', 'name', 'avatar'] },
+        { model: User, as: 'user2', attributes: ['id', 'name', 'avatar'] },
+      ],
+    });
+
+    const buyers = chats.map((chat) => {
+      return chat.user1Id === req.user.id ? chat.user2 : chat.user1;
+    });
+
+    res.json(buyers);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.markAsSold = async (req, res) => {
+  try {
+    const { buyerId } = req.body;
+    const listing = await Listing.findByPk(req.params.id);
+    if (!listing) return res.status(404).json({ message: 'Listing not found' });
+    if (listing.userId !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
+
+    listing.status = listing.type === 'rent' ? 'rented' : 'sold';
+    listing.buyerId = buyerId || null;
+    await listing.save();
 
     res.json(listing);
   } catch (err) {

@@ -8,11 +8,13 @@ import { AuthContext } from '../context/AuthContext';
 import api from '../utils/api';
 import { UPLOADS_URL } from '../utils/constants';
 import { GridSkeleton } from '../components/Skeleton';
+import SelectBuyerModal from '../components/SelectBuyerModal';
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
   const [myListings, setMyListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [soldModal, setSoldModal] = useState({ open: false, listingId: null, listingType: null });
 
   const fetchMine = () => {
     setLoading(true);
@@ -32,16 +34,6 @@ const Profile = () => {
       fetchMine();
     } catch (err) {
       toast.error('Could not delete listing');
-    }
-  };
-
-  const handleMarkSold = async (id, type) => {
-    try {
-      await api.put('/listings/' + id, { status: type === 'rent' ? 'rented' : 'sold' });
-      toast.success('Marked as ' + (type === 'rent' ? 'rented' : 'sold'));
-      fetchMine();
-    } catch (err) {
-      toast.error('Could not update status');
     }
   };
 
@@ -133,14 +125,11 @@ const Profile = () => {
                 <span className={'text-xs capitalize font-medium ' + (item.status === 'available' ? 'text-green-600' : 'text-gray-400')}>
                   {item.status}
                 </span>
-                <p className="text-xs text-gray-400 mt-1">
-                  {item.viewCount || 0} view{item.viewCount !== 1 ? 's' : ''} this listing has received
-                </p>
                 <div className="flex gap-2 mt-3">
                   {item.status === 'available' && (
                     <motion.button
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleMarkSold(item.id, item.type)}
+                      onClick={() => setSoldModal({ open: true, listingId: item.id, listingType: item.type })}
                       className="flex-1 text-xs bg-green-50 text-green-600 py-2 rounded-lg flex items-center justify-center gap-1 hover:bg-green-100"
                     >
                       <FaCheckCircle /> Mark {item.type === 'rent' ? 'Rented' : 'Sold'}
@@ -159,6 +148,14 @@ const Profile = () => {
           ))}
         </div>
       )}
+
+      <SelectBuyerModal
+        open={soldModal.open}
+        onClose={() => setSoldModal({ open: false, listingId: null, listingType: null })}
+        listingId={soldModal.listingId}
+        listingType={soldModal.listingType}
+        onConfirmed={fetchMine}
+      />
     </div>
   );
 };

@@ -7,11 +7,14 @@ const { validate, listingRules } = require('../middleware/validators');
 const {
   createListing, getListings, getListingById,
   updateListing, deleteListing, getMyListings, getSuggestions,
+  getPotentialBuyers, markAsSold,
 } = require('../controllers/listingController');
 
 router.get('/', getListings);
 router.get('/mine', protect, getMyListings);
 router.get('/suggestions', getSuggestions);
+router.get('/:id/buyers', protect, getPotentialBuyers);
+router.put('/:id/sold', protect, markAsSold);
 router.get('/:id', getListingById);
 router.post('/', protect, upload.single('image'), listingRules, validate, createListing);
 router.put('/:id', protect, upload.single('image'), updateListing);
